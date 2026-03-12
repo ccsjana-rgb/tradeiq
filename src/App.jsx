@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── FIREBASE CONFIG ─────────────────────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyArewiCKB6mzfs4ug3uPRxNNTbGvDni7jw",
+  apiKey:            "AIzaSyC066OOQfhCSE283-wICQ6czsjK-eJjMFU",
   authDomain:        "nifty50-a5b7c.firebaseapp.com",
   projectId:         "nifty50-a5b7c",
   storageBucket:     "nifty50-a5b7c.firebasestorage.app",
