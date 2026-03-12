@@ -134,20 +134,29 @@ function AIModal({ stock, onClose }) {
   useEffect(() => { analyzeStock(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+
   async function callGemini(prompt) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1000 }
-        })
-      }
-    );
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to analyze.";
+    console.log("GEMINI_KEY exists:", !!GEMINI_KEY, "length:", GEMINI_KEY?.length);
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 1000 }
+          })
+        }
+      );
+      const data = await res.json();
+      console.log("Gemini status:", res.status, "data:", JSON.stringify(data).slice(0, 200));
+      if (data.error) return "Error: " + data.error.message;
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to analyze.";
+    } catch(e) {
+      console.log("Gemini fetch error:", e.message);
+      return "Unable to analyze.";
+    }
   }
 
   async function analyzeStock() {
@@ -160,6 +169,7 @@ function AIModal({ stock, onClose }) {
       else setRiskLevel("MEDIUM");
       setMessages([{ role: "assistant", content: text }]);
     } catch(e) {
+      console.log("analyzeStock error:", e.message);
       setMessages([{ role: "assistant", content: "Analysis unavailable. Please try again." }]);
       setRiskLevel("MEDIUM");
     }
