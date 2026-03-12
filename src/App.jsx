@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// ─── PASTE YOUR FIREBASE CONFIG HERE ────────────────────────
+// ─── FIREBASE CONFIG ─────────────────────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyCcLIonfN0KWR__gZeqc42bWH__4lA6W3o",
+  apiKey:            "AIzaSyArewiCKB6mzfs4ug3uPRxNNTbGvDni7jw",
   authDomain:        "nifty50-a5b7c.firebaseapp.com",
   projectId:         "nifty50-a5b7c",
   storageBucket:     "nifty50-a5b7c.firebasestorage.app",
@@ -16,6 +16,8 @@ const FIREBASE_CONFIG = {
   appId:             "1:741386978523:web:afd14c255f45539ae938fe",
 };
 
+// ─── GEMINI API KEY ──────────────────────────────────────────
+const GEMINI_KEY = "YOUR_GEMINI_API_KEY";
 // ─────────────────────────────────────────────────────────────
 
 let firebaseApp, firebaseAuth, firebaseDb;
@@ -132,27 +134,35 @@ function AIModal({ stock, onClose }) {
   useEffect(() => { analyzeStock(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  async function callGemini(prompt) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1000 }
+        })
+      }
+    );
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to analyze.";
+  }
+
   async function analyzeStock() {
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { 
-  "Content-Type": "application/json",
-},
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
-          system: `You are TradeIQ, an expert Indian stock market analyst. Always start with RISK LEVEL: LOW, MEDIUM, or HIGH. Give 3 key reasons, sector context, and educational tips. Always remind users this is educational, not financial advice. Be friendly, use emojis.`,
-          messages: [{ role: "user", content: `Analyze ${stock.symbol} (${stock.name}): Price ₹${stock.price.toLocaleString("en-IN")}, Change: ${stock.change > 0 ? "+" : ""}${stock.change}%, Sector: ${stock.sector}. Give risk assessment for a retail investor.` }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || "Unable to analyze.";
-      if (text.toLowerCase().includes("risk level: low"))       setRiskLevel("LOW");
+      const prompt = `You are TradeIQ, an expert Indian stock market analyst. Always start with RISK LEVEL: LOW, MEDIUM, or HIGH. Give 3 key reasons, sector context, and educational tips. Always remind users this is educational, not financial advice. Be friendly, use emojis.\n\nAnalyze ${stock.symbol} (${stock.name}): Price Rs.${stock.price}, Change: ${stock.change > 0 ? "+" : ""}${stock.change}%, Sector: ${stock.sector}. Give risk assessment for a retail investor.`;
+      const text = await callGemini(prompt);
+      if (text.toLowerCase().includes("risk level: low")) setRiskLevel("LOW");
       else if (text.toLowerCase().includes("risk level: high")) setRiskLevel("HIGH");
-      else                                                       setRiskLevel("MEDIUM");
+      else setRiskLevel("MEDIUM");
       setMessages([{ role: "assistant", content: text }]);
-    } catch { setMessages([{ role: "assistant", content: "⚠️ Analysis unavailable. Please try again." }]); setRiskLevel("MEDIUM"); }
+    } catch(e) {
+      setMessages([{ role: "assistant", content: "Analysis unavailable. Please try again." }]);
+      setRiskLevel("MEDIUM");
+    }
     setLoading(false);
   }
 
@@ -162,20 +172,13 @@ function AIModal({ stock, onClose }) {
     const next = [...messages, { role: "user", content: userInput }];
     setMessages(next); setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { 
-  "Content-Type": "application/json",
-},
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
-          system: `You are TradeIQ, an expert Indian stock educator. The user asks about ${stock.symbol} at ₹${stock.price}, ${stock.change > 0 ? "up" : "down"} ${Math.abs(stock.change)}% in ${stock.sector}. Be educational, concise. Not financial advice.`,
-          messages: next.map(m => ({ role: m.role, content: m.content }))
-        })
-      });
-      const data = await res.json();
-      setMessages(p => [...p, { role: "assistant", content: data.content?.[0]?.text || "Unable to respond." }]);
-    } catch { setMessages(p => [...p, { role: "assistant", content: "⚠️ Connection error." }]); }
+      const history = next.map(m => (m.role === "user" ? "User: " : "Assistant: ") + m.content).join("\n");
+      const prompt = `You are TradeIQ, an expert Indian stock educator. The user asks about ${stock.symbol} at Rs.${stock.price}, ${stock.change > 0 ? "up" : "down"} ${Math.abs(stock.change)}% in ${stock.sector}. Be educational, concise. Not financial advice.\n\n${history}`;
+      const text = await callGemini(prompt);
+      setMessages(p => [...p, { role: "assistant", content: text }]);
+    } catch {
+      setMessages(p => [...p, { role: "assistant", content: "Connection error." }]);
+    }
     setLoading(false);
   }
 
@@ -494,7 +497,7 @@ export default function App() {
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search stocks…"
               style={{ background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", color:"#fff", padding:"10px 16px 10px 40px", borderRadius:10, fontSize:14, fontFamily:"inherit", outline:"none", width:260 }} />
           </div>
-          <select value={sortBy} onChange={e=>setSort(e.target.value)} style={{ background:"#0d1526", border:"1px solid rgba(255,255,255,.08)", color:"#fff", padding:"9px 14px", borderRadius:8, fontFamily:"inherit", fontSize:13, outline:"none" }}>
+          <select value={sortBy} onChange={e=>setSort(e.target.value)} style={{ background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.08)", color:"#fff", padding:"9px 14px", borderRadius:8, fontFamily:"inherit", fontSize:13, outline:"none" }}>
             <option value="default">Sort: Default</option>
             <option value="price_desc">Price: High → Low</option>
             <option value="price_asc">Price: Low → High</option>
