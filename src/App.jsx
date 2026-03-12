@@ -137,7 +137,9 @@ function AIModal({ stock, onClose }) {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+  "Content-Type": "application/json",
+},
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514", max_tokens: 1000,
           system: `You are TradeIQ, an expert Indian stock market analyst. Always start with RISK LEVEL: LOW, MEDIUM, or HIGH. Give 3 key reasons, sector context, and educational tips. Always remind users this is educational, not financial advice. Be friendly, use emojis.`,
@@ -162,7 +164,9 @@ function AIModal({ stock, onClose }) {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+  "Content-Type": "application/json",
+},
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514", max_tokens: 1000,
           system: `You are TradeIQ, an expert Indian stock educator. The user asks about ${stock.symbol} at ₹${stock.price}, ${stock.change > 0 ? "up" : "down"} ${Math.abs(stock.change)}% in ${stock.sector}. Be educational, concise. Not financial advice.`,
