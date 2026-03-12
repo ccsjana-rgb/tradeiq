@@ -17,7 +17,7 @@ const FIREBASE_CONFIG = {
 };
 
 // ─── GEMINI API KEY ──────────────────────────────────────────
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
+const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 // ─────────────────────────────────────────────────────────────
 
 let firebaseApp, firebaseAuth, firebaseDb;
@@ -135,35 +135,30 @@ function AIModal({ stock, onClose }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
 
-  async function callGemini(prompt) {
-    console.log("GEMINI_KEY exists:", !!GEMINI_KEY, "length:", GEMINI_KEY?.length);
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 1000 }
-          })
-        }
-      );
-      const data = await res.json();
-      console.log("Gemini status:", res.status, "data:", JSON.stringify(data).slice(0, 200));
-      if (data.error) return "Error: " + data.error.message;
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to analyze.";
-    } catch(e) {
-      console.log("Gemini fetch error:", e.message);
-      return "Unable to analyze.";
-    }
+  async function callGroq(prompt) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1000
+      })
+    });
+    const data = await res.json();
+    console.log("Groq response:", JSON.stringify(data).slice(0, 200));
+    if (data.error) return "Error: " + data.error.message;
+    return data.choices?.[0]?.message?.content || "Unable to analyze.";
   }
 
   async function analyzeStock() {
     setLoading(true);
     try {
       const prompt = `You are TradeIQ, an expert Indian stock market analyst. Always start with RISK LEVEL: LOW, MEDIUM, or HIGH. Give 3 key reasons, sector context, and educational tips. Always remind users this is educational, not financial advice. Be friendly, use emojis.\n\nAnalyze ${stock.symbol} (${stock.name}): Price Rs.${stock.price}, Change: ${stock.change > 0 ? "+" : ""}${stock.change}%, Sector: ${stock.sector}. Give risk assessment for a retail investor.`;
-      const text = await callGemini(prompt);
+      const text = await callGroq(prompt);
       if (text.toLowerCase().includes("risk level: low")) setRiskLevel("LOW");
       else if (text.toLowerCase().includes("risk level: high")) setRiskLevel("HIGH");
       else setRiskLevel("MEDIUM");
@@ -184,7 +179,7 @@ function AIModal({ stock, onClose }) {
     try {
       const history = next.map(m => (m.role === "user" ? "User: " : "Assistant: ") + m.content).join("\n");
       const prompt = `You are TradeIQ, an expert Indian stock educator. The user asks about ${stock.symbol} at Rs.${stock.price}, ${stock.change > 0 ? "up" : "down"} ${Math.abs(stock.change)}% in ${stock.sector}. Be educational, concise. Not financial advice.\n\n${history}`;
-      const text = await callGemini(prompt);
+      const text = await callGroq(prompt);
       setMessages(p => [...p, { role: "assistant", content: text }]);
     } catch {
       setMessages(p => [...p, { role: "assistant", content: "Connection error." }]);
