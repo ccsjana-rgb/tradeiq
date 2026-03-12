@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── FIREBASE CONFIG ─────────────────────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyC066OOQfhCSE283-wICQ6czsjK-eJjMFU",
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        "nifty50-a5b7c.firebaseapp.com",
   projectId:         "nifty50-a5b7c",
   storageBucket:     "nifty50-a5b7c.firebasestorage.app",
@@ -17,7 +17,7 @@ const FIREBASE_CONFIG = {
 };
 
 // ─── GEMINI API KEY ──────────────────────────────────────────
-const GEMINI_KEY = "YOUR_GEMINI_API_KEY";
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
 // ─────────────────────────────────────────────────────────────
 
 let firebaseApp, firebaseAuth, firebaseDb;
